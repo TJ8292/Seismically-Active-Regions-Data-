@@ -252,11 +252,14 @@ map.on('singleclick', function(evt) {
 var coordinate = evt.coordinate;
 var stringifyFunc = ol.coordinate.createStringXY(2);
 var out = stringifyFunc(coordinate);
+var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+  var lon = lonlat[0];
+  var lat = lonlat[1];
 var feature = map.forEachFeatureAtPixel(evt.pixel,
 function(feature, layer) {
 // do stuff here
 content.innerHTML = '<p>Information:</p><code>' +
-'<p>Cordinates: ' + out + '</p>' + 'Id: ' + feature.getId() +
+'<p>Cordinates: ' + lon + ' ' + lat + '</p>' + 'Id: ' + feature.getId() +
 '</code>';
 overlay.setPosition(coordinate);
 });
