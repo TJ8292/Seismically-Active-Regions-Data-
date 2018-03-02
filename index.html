@@ -7,17 +7,37 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 <link rel="stylesheet" href="css/styles.css">
+
 <link rel="stylesheet" href="https://openlayers.org/en/v3.20.1/css/ol.css" type="text/css">
 <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
 <script src="https://openlayers.org/en/v4.6.4/build/ol.js"></script>
 <body>
 
-    <div id="map" class="map"></div>
-    <div id="popup" class="ol-popup">
-        <a href="#" id="popup-closer" class="ol-popup-closer"></a>
-        <div id="popup-content"></div>
-    </div>
- <button id="bufferit" >buffer it</button> 
+
+
+<div id="map" class="map">
+<input class="w3-radio" type="radio" name="gender" value="buffering" id="buf" checked>
+<label>Buffering</label>
+<select id="distance">
+<option value="1000">1k</option>
+<option value="2000">2k</option>
+<option value="4000">4k</option>
+<option value="8000">8k</option>
+<option value="16000">16k</option>
+<option value="32000">32k</option>
+<option value="64000">64k</option>
+<option value="128000">128k</option>
+<option value="256000">256k</option>
+<option value="1000000">BRING IT</option>
+</select>
+<input class="w3-radio" type="radio" name="gender" value="selection" id="sel">
+<label>Selection</label>
+<button class="w3-button w3-red" onclick="renderMap()">Reset</button>
+</div>
+<div id="popup" class="ol-popup">
+<a href="#" id="popup-closer" class="ol-popup-closer"></a>
+<div id="popup-content"></div>
+</div>
 <script src="javascript/core.js"></script>
 </body>
 </html>
