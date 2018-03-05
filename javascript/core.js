@@ -1,14 +1,6 @@
-
 var container = document.getElementById('popup');
 var content = document.getElementById('popup-content');
 var closer = document.getElementById('popup-closer');
-
-var popSelected = new ol.style.Style({
-stroke: new ol.style.Stroke({
-color: [0, 255, 255, 1.0],
-width: 1
-})
-});
 
 var sweadmStyle = new ol.style.Style({
 stroke: new ol.style.Stroke({
@@ -27,6 +19,30 @@ width: 2
 })
 });
 
+var nukeStyle = new ol.style.Style({
+image: new ol.style.Circle({
+fill: new ol.style.Fill({
+color: 'green'
+}),
+stroke: new ol.style.Stroke({
+color: 'black'
+}),
+radius: 8
+})
+});
+
+var quakeStyle = new ol.style.Style({
+image: new ol.style.Circle({
+fill: new ol.style.Fill({
+color: 'purple'
+}),
+stroke: new ol.style.Stroke({
+color: 'black'
+}),
+radius: 9
+})
+});
+
 var popStyle = new ol.style.Style({
 image: new ol.style.Circle({
 fill: new ol.style.Fill({
@@ -42,7 +58,7 @@ radius: 5
 var popSelected = new ol.style.Style({
 image: new ol.style.Circle({
 fill: new ol.style.Fill({
-color: 'green'
+color: 'yellow'
 }),
 stroke: new ol.style.Stroke({
 color: 'black'
@@ -51,39 +67,9 @@ radius: 8
 })
 });
 
-var railwaysStyle = new ol.style.Style({
-stroke: new ol.style.Stroke({
-color: [0, 0, 255, 1.0],
-width: 1
-})
-});
-var railwaysSelected = new ol.style.Style({
-stroke: new ol.style.Stroke({
-color: [0, 255, 255, 1.0],
-width: 1
-})
-});
-
-var sweadmStyle = new ol.style.Style({
-stroke: new ol.style.Stroke({
-color: [0, 0, 255, 1.0],
-width: 1
-}),
-fill: new ol.style.Fill({
-color: [200, 100, 1, .7]
-})
-});
-
-var sweAdmSelected = new ol.style.Style({
-stroke: new ol.style.Stroke({
-color: [0, 0, 255, 1.0],
-width: 2
-})
-});
-
-var vectorSource = new ol.source.Vector();
-var vector = new ol.layer.Vector({
-source: vectorSource,
+var vectorSourcePop = new ol.source.Vector();
+var vectorPop = new ol.layer.Vector({
+source: vectorSourcePop,
 style: popStyle
 
 });
@@ -92,6 +78,19 @@ var vector2 = new ol.layer.Vector({
 source: vectorSource2
 
 });
+
+var vectorSourceNuclear = new ol.source.Vector();
+var vectorNuclear = new ol.layer.Vector({
+	source: vectorSourceNuclear,
+	style: nukeStyle
+});
+
+var vectorSourceQuake = new ol.source.Vector();
+var vectorQuake = new ol.layer.Vector({
+	source: vectorSourceQuake,
+	style: quakeStyle
+});
+ 
 /**
 * Create an overlay to anchor the popup to the map.
 */
@@ -133,13 +132,14 @@ source: new ol.source.Stamen({
 });
 
 var map = new ol.Map({
-layers: [osm, vector, vector2],
+layers: [osm, vectorPop, vectorNuclear, vectorQuake],
 overlays: [overlay],
 target: document.getElementById('map'),
 view: new ol.View({
 center: ol.proj.transform([-99.4411447,38.495586],'EPSG:4326','EPSG:900913'),
 maxZoom: 25,
-zoom: 4
+zoom: 4,
+units: 'm'
 })
 });
 
@@ -158,8 +158,8 @@ body: new XMLSerializer().serializeToString(featureRequest)
 return response.json();
 }).then(function(json) {
 var features = new ol.format.GeoJSON().readFeatures(json);
-vectorSource.addFeatures(features);
-extent_swe = vectorSource.getExtent();
+vectorSourcePop.addFeatures(features);
+extent_swe = vectorSourcePop.getExtent();
 });
 
 var featureRequest2 = new ol.format.WFS().writeGetFeature({
@@ -181,7 +181,50 @@ vectorSource2.addFeatures(features2);
 extent_swe = vectorSource2.getExtent();
 });
 
+var featureRequestNuclear = new ol.format.WFS().writeGetFeature({
+srsName: 'EPSG:3857',
+featureNS: 'usa',
+featurePrefix: 'usa',
+featureTypes: ['nuclear-facilities'],
+outputFormat: 'application/json'
+});
 
+fetch('http://localhost:8080/geoserver/wfs', {
+method: 'POST',
+body: new XMLSerializer().serializeToString(featureRequestNuclear)
+}).then(function(responseNuke) {
+return responseNuke.json();
+}).then(function(jsonNuke) {
+var featuresNuke = new ol.format.GeoJSON().readFeatures(jsonNuke);
+vectorSourceNuclear.addFeatures(featuresNuke);
+extent_swe = vectorSourceNuclear.getExtent();
+});
+
+
+var featureRequestQuake = new ol.format.WFS().writeGetFeature({
+srsName: 'EPSG:3857',
+featureNS: 'usa',
+featurePrefix: 'usa',
+featureTypes: ['earthquake'],
+outputFormat: 'application/json'
+});
+
+fetch('http://localhost:8080/geoserver/wfs', {
+method: 'POST',
+body: new XMLSerializer().serializeToString(featureRequestQuake)
+}).then(function(responseQuake) {
+return responseQuake.json();
+}).then(function(jsonQuake) {
+var featuresQuake = new ol.format.GeoJSON().readFeatures(jsonQuake);
+vectorSourceQuake.addFeatures(featuresQuake);
+extent_swe = vectorSourceQuake.getExtent();
+});
+
+var vectorBuffers= new ol.layer.Vector({
+source: new ol.source.Vector({
+	projection: 'EPSG:3857'
+})
+});
 
 var selectInteraction = new ol.interaction.Select({
 layers: function(layer) {
@@ -190,14 +233,102 @@ return layer.get('selectable') == true;
 style: [popSelected, sweAdmSelected]
 });
 
-vector.set('selectable', true);
+vectorPop.set('selectable', true);
 vector2.set('selectable', true);
+vectorNuclear.set('selectable',true);
+vectorQuake.set('selectable',true);
 map.getInteractions().extend([selectInteraction]);
 
-//selectInteraction.on('select', function(e) {
-//var s = e.selected[0].getGeometry().getExtent();
-//console.log(s);
-//}
+
+
+selectInteraction.on('select', function(e) {
+var s = e.selected[0].getGeometry().getExtent();
+console.log(s);
+var radius= parseFloat(100000);
+
+var bufferedExtent = new ol.extent.buffer(s,radius);
+console.log(bufferedExtent);
+var bufferPolygon = new ol.geom.Polygon(
+[
+[[bufferedExtent[0],bufferedExtent[1]],
+[bufferedExtent[0],bufferedExtent[3]],
+[bufferedExtent[2],bufferedExtent[3]],
+[bufferedExtent[2],bufferedExtent[1]],
+[bufferedExtent[0],bufferedExtent[1]]]
+]
+);
+console.log("bufferPolygon",bufferPolygon);
+var bufferedFeature = new ol.Feature(bufferPolygon);
+vectorBuffers.getSource().clear();
+vectorBuffers.getSource().addFeature(bufferedFeature);
+
+var featureRequest3 = new ol.format.WFS().writeGetFeature({
+srsName: 'EPSG:3857',
+featureNS: 'usa',
+featurePrefix: 'usa',
+featureTypes: ['pop-us'],
+outputFormat: 'application/json',
+filter: new ol.format.filter.Bbox('the_geom', bufferedExtent, 'EPSG:3857')
+});
+
+// then post the request and add the received features to a layer
+fetch('http://localhost:8080/geoserver/wfs', {
+method: 'POST',
+body: new XMLSerializer().serializeToString(featureRequest3)
+}).then(function(response3) {
+//console.log(response3); //prints out information in console
+return response3.json();
+}).then(function(json3) {
+var features3 = new ol.format.GeoJSON().readFeatures(json3);
+vectorSourcePop.clear();
+vectorSourcePop.addFeatures(features3);
+map.addLayer(vectorPop);
+});
+
+var featureRequestNuclear1 = new ol.format.WFS().writeGetFeature({
+srsName: 'EPSG:3857',
+featureNS: 'usa',
+featurePrefix: 'usa',
+featureTypes: ['nuclear-facilities'],
+outputFormat: 'application/json',
+filter: new ol.format.filter.Bbox('the_geom', bufferedExtent, 'EPSG:3857')
+});
+
+fetch('http://localhost:8080/geoserver/wfs', {
+method: 'POST',
+body: new XMLSerializer().serializeToString(featureRequestNuclear1)
+}).then(function(responseNuke1) {
+return responseNuke1.json();
+}).then(function(jsonNuke1) {
+var featuresNuke1 = new ol.format.GeoJSON().readFeatures(jsonNuke1);
+vectorSourceNuclear.clear();
+vectorSourceNuclear.addFeatures(featuresNuke1);
+map.addLayer(vectorNuclear);
+});
+
+
+var featureRequestQuake1 = new ol.format.WFS().writeGetFeature({
+srsName: 'EPSG:3857',
+featureNS: 'usa',
+featurePrefix: 'usa',
+featureTypes: ['earthquake'],
+outputFormat: 'application/json',
+filter: new ol.format.filter.Bbox('the_geom', bufferedExtent, 'EPSG:3857')
+});
+
+fetch('http://localhost:8080/geoserver/wfs', {
+method: 'POST',
+body: new XMLSerializer().serializeToString(featureRequestQuake1)
+}).then(function(responseQuake1) {
+return responseQuake1.json();
+}).then(function(jsonQuake1) {
+var featuresQuake1 = new ol.format.GeoJSON().readFeatures(jsonQuake1);
+vectorSourceQuake.clear();
+vectorSourceQuake.addFeatures(featuresQuake1);
+map.addLayer(vectorQuake);
+});
+
+});
 /**
 * Add a click handler to the map to render the popup.
 */
@@ -238,75 +369,4 @@ content.innerHTML = '<p>Information:</p><code>' +
 '</code>';
 overlay.setPosition(coordinate);
 });
-    var x = document.getElementById("buf").checked;
-	var dist = document.getElementById("distance").value;
-	console.log(dist);
-    if(x){
-    bufferit(dist,pointFeature,vectorBuffers,vectorPoint);
-    }
-	
-	var y = document.getElementById("sel").checked;
-    if(y){
-    
-    }
-
 });
-
-
-//document.getElementById('bufferit').onclick = function (){
-//var bufferRadius = 1000000;
-//bufferit(bufferRadius)
-//};
-
-//function that uses point's geometry
-//and draws a polygon around it,
-//then the drawn features are added to the vectorBuffers
-function bufferit(radius,pointFeature,vectorBuffers,vectorPoint){
-map.addLayer(vectorPoint);
-map.addLayer(vectorBuffers);
-var poitnExtent = pointFeature.getGeometry().getExtent();
-//var poitnExtent = pointsLayer.getSource().getExtent();
-var bufferedExtent = new ol.extent.buffer(poitnExtent,radius);
-
-console.log(bufferedExtent);
-var bufferPolygon = new ol.geom.Polygon(
-[
-[[bufferedExtent[0],bufferedExtent[1]],
-[bufferedExtent[0],bufferedExtent[3]],
-[bufferedExtent[2],bufferedExtent[3]],
-[bufferedExtent[2],bufferedExtent[1]],
-[bufferedExtent[0],bufferedExtent[1]]]
-]
-);
-console.log("bufferPolygon",bufferPolygon);
-var bufferedFeature = new ol.Feature(bufferPolygon);
-vectorBuffers.getSource().addFeature(bufferedFeature);
-
-var featureRequest3 = new ol.format.WFS().writeGetFeature({
-srsName: 'EPSG:3857',
-featureNS: 'usa',
-featurePrefix: 'usa',
-featureTypes: ['pop-us'],
-outputFormat: 'application/json',
-filter: new ol.format.filter.Bbox('the_geom', bufferedExtent, 'EPSG:3857')
-});
-
-// then post the request and add the received features to a layer
-fetch('http://localhost:8080/geoserver/wfs', {
-method: 'POST',
-body: new XMLSerializer().serializeToString(featureRequest3)
-}).then(function(response3) {
-//console.log(response3); //prints out information in console
-return response3.json();
-}).then(function(json3) {
-var features3 = new ol.format.GeoJSON().readFeatures(json3);
-vectorSource.clear();
-vectorSource.addFeatures(features3);
-map.addLayer(vector);
-extent_swe = vectorSource.getExtent();
-});
-
-//map.addLayer(vectorPoint);
-//map.addLayer(vectorBuffers);
-
- }
